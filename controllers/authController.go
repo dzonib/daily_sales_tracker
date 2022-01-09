@@ -1,6 +1,10 @@
 package controllers
 
 import (
+	"strconv"
+	"time"
+
+	"github.com/dgrijalva/jwt-go/v4"
 	"github.com/dzonib/daily_sales_tracker/database"
 	"github.com/dzonib/daily_sales_tracker/models"
 	"github.com/gofiber/fiber/v2"
@@ -52,16 +56,89 @@ func Login(c *fiber.Ctx) error {
 	if user.Id == 0 {
 		c.Status(404)
 		return c.JSON(fiber.Map{
-			"message": "User not found",
+			"message": "Invalid credentials",
 		})
 	}
 
 	if err := bcrypt.CompareHashAndPassword(user.Password, []byte(data["password"])); err != nil {
 		c.Status(400)
 		return c.JSON(fiber.Map{
-			"message": "incorrect password",
+			"message": "Invalid credentials",
 		})
 	}
+
+	payload := jwt.StandardClaims{
+		Issuer:    strconv.Itoa(int(user.Id)),
+		ExpiresAt: jwt.NewTime(float64(time.Now().Add(time.Hour * 24).Unix())),
+	}
+	// time.Now().Add(time.Hour * 24).Unix()
+
+	// create claims
+	token, err := jwt.NewWithClaims(jwt.SigningMethodHS256, payload).SignedString([]byte("secret"))
+
+	if err != nil {
+		c.Status(400)
+		return c.JSON(fiber.Map{
+			"message": "Invalid credentials",
+		})
+	}
+
+	cookie := fiber.Cookie{
+		Name:    "jwt",
+		Value:   token,
+		Expires: time.Now().Add(time.Hour * 24),
+		// frontend won't be able to access
+		HTTPOnly: true,
+	}
+
+	c.Cookie(&cookie)
+	return c.JSON(fiber.Map{
+		"message": "Success",
+	})
+}
+
+type Claims struct {
+	jwt.StandardClaims
+}
+
+func Logout(c *fiber.Ctx) error {
+	// overwrite jwt cookie
+	cookie := fiber.Cookie{
+		Name:    "jwt",
+		Value:   "",
+		Expires: time.Now().Add(-time.Hour),
+		// frontend won't be able to access
+		HTTPOnly: true,
+	}
+
+	c.Cookie(&cookie)
+
+	return c.JSON(fiber.Map{
+		"message": "success",
+	})
+}
+
+func User(c *fiber.Ctx) error {
+	cookie := c.Cookies("jwt")
+
+	token, err := jwt.ParseWithClaims(cookie, &Claims{}, func(token *jwt.Token) (interface{}, error) {
+		return []byte("secret"), nil
+	})
+
+	if err != nil || !token.Valid {
+		c.Status(fiber.StatusUnauthorized)
+		return c.JSON(fiber.Map{
+			"message": "unauthenticated",
+			"error":   err,
+			"token":   token,
+		})
+	}
+
+	claims := token.Claims.(*Claims)
+
+	var user models.User
+
+	database.DB.Where("id = ?", claims.Issuer).First(&user)
 
 	return c.JSON(user)
 }
