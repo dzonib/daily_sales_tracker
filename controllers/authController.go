@@ -1,14 +1,13 @@
 package controllers
 
 import (
+	"github.com/dzonib/daily_sales_tracker/util"
 	"strconv"
 	"time"
 
-	"github.com/dgrijalva/jwt-go/v4"
 	"github.com/dzonib/daily_sales_tracker/database"
 	"github.com/dzonib/daily_sales_tracker/models"
 	"github.com/gofiber/fiber/v2"
-	"golang.org/x/crypto/bcrypt"
 )
 
 // var DB = database.DB
@@ -17,8 +16,22 @@ func Register(c *fiber.Ctx) error {
 
 	var data map[string]string
 
+	var user models.User
+
 	if err := c.BodyParser(&data); err != nil {
-		return err
+		c.Status(400)
+		return c.JSON(fiber.Map{
+			"message": "bad request",
+		})
+	}
+
+	database.DB.Where("email = ?", data["email"]).Find(&user)
+
+	if user.Email == data["email"] {
+		c.Status(400)
+		return c.JSON(fiber.Map{
+			"message": "email taken, please choose another",
+		})
 	}
 
 	if data["password"] != data["password_confirm"] {
@@ -28,14 +41,13 @@ func Register(c *fiber.Ctx) error {
 		})
 	}
 
-	password, _ := bcrypt.GenerateFromPassword([]byte(data["password"]), 14)
-
-	user := models.User{
+	user = models.User{
 		FirstName: data["first_name"],
 		LastName:  data["last_name"],
 		Email:     data["email"],
-		Password:  password,
 	}
+
+	user.SetPassword(data["password"])
 
 	database.DB.Create(&user)
 
@@ -46,7 +58,10 @@ func Login(c *fiber.Ctx) error {
 	var data map[string]string
 
 	if err := c.BodyParser(&data); err != nil {
-		return err
+		c.Status(404)
+		return c.JSON(fiber.Map{
+			"message": "bad request",
+		})
 	}
 
 	var user models.User
@@ -60,21 +75,14 @@ func Login(c *fiber.Ctx) error {
 		})
 	}
 
-	if err := bcrypt.CompareHashAndPassword(user.Password, []byte(data["password"])); err != nil {
+	if err := user.ComparePassword(data["password"]); err != nil {
 		c.Status(400)
 		return c.JSON(fiber.Map{
 			"message": "Invalid credentials",
 		})
 	}
 
-	payload := jwt.StandardClaims{
-		Issuer:    strconv.Itoa(int(user.Id)),
-		ExpiresAt: jwt.NewTime(float64(time.Now().Add(time.Hour * 24).Unix())),
-	}
-	// time.Now().Add(time.Hour * 24).Unix()
-
-	// create claims
-	token, err := jwt.NewWithClaims(jwt.SigningMethodHS256, payload).SignedString([]byte("secret"))
+	token, err := util.GenerateJwt(strconv.Itoa(int(user.Id)))
 
 	if err != nil {
 		c.Status(400)
@@ -97,10 +105,6 @@ func Login(c *fiber.Ctx) error {
 	})
 }
 
-type Claims struct {
-	jwt.StandardClaims
-}
-
 func Logout(c *fiber.Ctx) error {
 	// overwrite jwt cookie
 	cookie := fiber.Cookie{
@@ -121,24 +125,11 @@ func Logout(c *fiber.Ctx) error {
 func User(c *fiber.Ctx) error {
 	cookie := c.Cookies("jwt")
 
-	token, err := jwt.ParseWithClaims(cookie, &Claims{}, func(token *jwt.Token) (interface{}, error) {
-		return []byte("secret"), nil
-	})
-
-	if err != nil || !token.Valid {
-		c.Status(fiber.StatusUnauthorized)
-		return c.JSON(fiber.Map{
-			"message": "unauthenticated",
-			"error":   err,
-			"token":   token,
-		})
-	}
-
-	claims := token.Claims.(*Claims)
+	id, _ := util.ParseJwt(cookie)
 
 	var user models.User
 
-	database.DB.Where("id = ?", claims.Issuer).First(&user)
+	database.DB.Where("id = ?", id).First(&user)
 
 	return c.JSON(user)
 }
