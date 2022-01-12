@@ -8,6 +8,7 @@ require (
 	github.com/andybalholm/brotli v1.0.4 // indirect
 	github.com/codegangsta/envy v0.0.0-20141216192214-4b78388c8ce4 // indirect
 	github.com/codegangsta/gin v0.0.0-20211113050330-71f90109db02 // indirect
+	github.com/dgrijalva/jwt-go/v4 v4.0.0-preview1 // indirect
 	github.com/gofiber/fiber/v2 v2.24.0 // indirect
 	github.com/jackc/pgx/v4 v4.14.1 // indirect
 	github.com/jcmturner/gokrb5/v8 v8.2.0 // indirect
