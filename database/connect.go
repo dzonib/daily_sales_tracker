@@ -38,7 +38,7 @@ func Connect() {
 	DB = db
 
 	// migration
-	dbErr := db.AutoMigrate(&models.User{}, &models.Role{})
+	dbErr := db.AutoMigrate(&models.User{}, &models.Role{}, models.Permission{})
 
 	if dbErr != nil {
 		println(dbErr)
