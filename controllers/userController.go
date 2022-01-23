@@ -8,11 +8,33 @@ import (
 )
 
 func AllUsers(c *fiber.Ctx) error {
-	var users []models.User
 
-	database.DB.Preload("Role").Find(&users)
+	page, _ := strconv.Atoi(c.Query("page", "1"))
 
-	return c.JSON(users)
+	//limit := 3
+
+	//offset := (page - 1) * limit
+
+	//var total int64
+	//
+	//var users []models.User
+	//
+	//database.DB.Preload("Role").Offset(offset).Limit(limit).Find(&users)
+	//
+	//database.DB.Model(&models.User{}).Count(&total)
+
+	//return c.JSON(fiber.Map{
+	//	"data": users,
+	//	"meta": fiber.Map{
+	//		"total":     total,
+	//		"page":      page,
+	//		"last_page": math.Ceil(float64(int(total) / limit)),
+	//	},
+	//})
+
+	// &models.User is entity because 2 methods we added for pagination (count and total), so we can pass it as arg.
+	// its generic and it works great for user and products
+	return c.JSON(models.Paginate(database.DB, &models.User{}, page))
 }
 
 func CreateUser(c *fiber.Ctx) error {

@@ -16,13 +16,27 @@ func AllRoles(c *fiber.Ctx) error {
 }
 
 func CreateRole(c *fiber.Ctx) error {
-	var role models.Role
+	var roleDTO models.RoleCreateDTO
 
-	if err := c.BodyParser(&role); err != nil {
+	if err := c.BodyParser(&roleDTO); err != nil {
 		return err
 	}
 
-	database.DB.Create(&role)
+	permissions := make([]models.Permission, len(roleDTO.Permissions))
+
+	for i, permissionId := range roleDTO.Permissions {
+
+		permissions[i] = models.Permission{
+			Id: uint(permissionId),
+		}
+	}
+
+	role := models.Role{
+		Name:        roleDTO.Name,
+		Permissions: permissions,
+	}
+
+	database.DB.Preload("Permissions").Create(&role)
 
 	return c.JSON(role)
 }
@@ -34,7 +48,7 @@ func GetRole(c *fiber.Ctx) error {
 		Id: uint(id),
 	}
 
-	database.DB.Find(&role)
+	database.DB.Preload("Permissions").Find(&role)
 
 	return c.JSON(role)
 }
@@ -42,15 +56,34 @@ func GetRole(c *fiber.Ctx) error {
 func UpdateRole(c *fiber.Ctx) error {
 	id, _ := strconv.Atoi(c.Params("id"))
 
-	var role = models.Role{
-		Id: uint(id),
-	}
+	var roleDTO models.RoleCreateDTO
 
-	if err := c.BodyParser(&role); err != nil {
+	if err := c.BodyParser(&roleDTO); err != nil {
 		return err
 	}
 
-	database.DB.Model(&role).Updates(role)
+	permissions := make([]models.Permission, len(roleDTO.Permissions))
+
+	for i, permissionId := range roleDTO.Permissions {
+
+		permissions[i] = models.Permission{
+			Id: uint(permissionId),
+		}
+	}
+
+	var hackForDelete interface{}
+
+	// remove previous role permissions
+	// because we don't have model, we have to directly specify the table name in "Table" method
+	database.DB.Table("role_permissions").Where("role_id", id).Delete(&hackForDelete)
+
+	role := models.Role{
+		Id:          uint(id),
+		Name:        roleDTO.Name,
+		Permissions: permissions,
+	}
+
+	database.DB.Model(&role).Preload("Permissions").Updates(role)
 
 	return c.JSON(role)
 }

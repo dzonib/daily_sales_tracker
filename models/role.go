@@ -5,3 +5,8 @@ type Role struct {
 	Name        string       `json:"name"`
 	Permissions []Permission `json:"permissions" gorm:"many2many:role_permissions"`
 }
+
+type RoleCreateDTO struct {
+	Name        string
+	Permissions []int
+}

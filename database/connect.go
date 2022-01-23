@@ -15,7 +15,6 @@ import (
 var DB *gorm.DB
 
 func Connect() {
-
 	newLogger := logger.New(
 		log.New(os.Stdout, "\r\n", log.LstdFlags), // io writer
 		logger.Config{
@@ -26,6 +25,7 @@ func Connect() {
 		},
 	)
 
+	// postgres DB (runs as container) credentials
 	dsn := "host=localhost user=postgres password=pass123 dbname=postgres port=5432"
 	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{
 		Logger: newLogger,
@@ -38,7 +38,7 @@ func Connect() {
 	DB = db
 
 	// migration
-	dbErr := db.AutoMigrate(&models.User{}, &models.Role{}, models.Permission{})
+	dbErr := db.AutoMigrate(&models.User{}, &models.Role{}, &models.Permission{}, &models.Product{}, &models.Order{}, &models.OrderItem{})
 
 	if dbErr != nil {
 		println(dbErr)

@@ -14,6 +14,9 @@ func Setup(app *fiber.App) {
 	// middleware
 	app.Use(middleware.IsAuthenticated)
 
+	app.Post("/api/user/info", controllers.UpdateInfo)
+	app.Post("/api/user/password", controllers.UpdatePassword)
+
 	//	authenticated only
 	app.Post("/api/logout", controllers.Logout)
 	app.Get("/api/user", controllers.User)
@@ -30,5 +33,21 @@ func Setup(app *fiber.App) {
 	app.Put("/api/roles/:id", controllers.UpdateRole)
 	app.Delete("/api/roles/:id", controllers.DeleteRole)
 
+	app.Get("/api/products", controllers.AllProducts)
+	app.Post("/api/products", controllers.CreateProduct)
+	app.Get("/api/products/:id", controllers.GetProduct)
+	app.Put("/api/products/:id", controllers.UpdateProduct)
+	app.Delete("/api/products/:id", controllers.DeleteProduct)
+
 	app.Get("/api/permissions", controllers.AllPermissions)
+
+	app.Post("/api/upload", controllers.Upload)
+
+	app.Get("/api/orders", controllers.AllOrders)
+
+	// export csv
+	app.Post("/api/export", controllers.Export)
+
+	// Serve static files
+	app.Static("/api/uploads", "./uploads")
 }
